@@ -35,7 +35,6 @@ import { ChevronBackIcon } from "@storyblok/mui";
 import StoryblokAppConfigration from "@/StoryblokAppConfiguration";
 import TranslationstudioLogo, { TranslationstudioLoading } from "@/utils/Logo";
 import { SaveRounded } from "@mui/icons-material";
-import { useAutoHeight } from "@/hooks";
 
 const Configuration = (props: { translationStudioConfiguration: TSConfiguration } & { accessToken: string, spaceId: string, userId: string, sbOwnerToken: string } & { setLocale: Function }) => {
 	const { push } = useRouter();
@@ -136,8 +135,6 @@ const Configuration = (props: { translationStudioConfiguration: TSConfiguration 
 			});
 	}
 
-	useAutoHeight();
-	
 	return (
 		<>
 			<Head>
@@ -152,11 +149,11 @@ const Configuration = (props: { translationStudioConfiguration: TSConfiguration 
 						:
 						<TranslationstudioLogo />
 					}
-					<Grid item xs={12} style={{ position: "relative" }}>
+					<Grid size={12} style={{ position: "relative" }}>
 						{licenseValid && (<ChevronBackIcon onClick={() => { closeConfiguration(); }} sx={{ position: 'absolute', left: '0', cursor: 'pointer' }} />)}
 						<Typography variant="h2" gutterBottom style={{ paddingLeft: licenseValid ? "30px" : "0" }}>{"Configuration"}</Typography>
 					</Grid>
-					<Grid item xs={12}>
+					<Grid size={12}>
 						<Box sx={{ pb: 2 }}>
 							<Box
 								component="form"
@@ -171,7 +168,7 @@ const Configuration = (props: { translationStudioConfiguration: TSConfiguration 
 									variant="filled"
 									multiline
 									rows={3}
-									disabled={pending || loader}
+									disabled={pending}
 									value={license}
 									onChange={(event: React.ChangeEvent<HTMLInputElement>) => setLicense(event.target.value.trim())}
 								/>
@@ -185,7 +182,7 @@ const Configuration = (props: { translationStudioConfiguration: TSConfiguration 
 							)}
 
 							<Box sx={{ mt: 6 }}>
-								<Button disabled={!license || license === licensePrev || savingConfig || loader } type="button"
+								<Button disabled={!license || license === licensePrev || savingConfig} type="button"
 								 onClick={() => saveValues()} variant="contained" 
 								 size="small" startIcon={<SaveRounded />}>
 									{licensePrev === "" ? "Save license" : "Update license"}
@@ -195,8 +192,8 @@ const Configuration = (props: { translationStudioConfiguration: TSConfiguration 
 							{savingConfig && <Box sx={{ mt: 6 }}><LinearProgress /></Box>}
 						</Box>
 					</Grid>
-					<Grid item xs={12}>
-						<Typography variant="caption">If you do not yet have a license, please visit your account at <a href="https://account.translationstudio.tech" target="_blank">account.translationstudio.tech</a>. Additional information can be found at <a href="https://translationstudio.tech" target="_blank">translationstudio.tech</a>.</Typography>
+					<Grid size={12}>
+						<Typography>If you do not yet have a license, please visit your account at <a href="https://account.translationstudio.tech" target="_blank">account.translationstudio.tech</a>. Additional information can be found at <a href="https://account.translationstudio.tech" target="_blank">account.translationstudio.tech</a>.</Typography>
 					</Grid>
 				</Grid>
 			</main>

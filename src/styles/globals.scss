@@ -1,14 +1,11 @@
-@media (prefers-color-scheme: dark) {
-    
-    .translationstudiologo {
-        filter: brightness(0) invert(1);
-    }
-
-}
-
 main {
     .text-center { text-align: center; }
     .pos-rel { position: relative; }
     .introduction { padding: 2em 0em}
     .breadcrmb { padding: 0 0 1em 0 }
+
+    table th {
+        color: rgb(95, 97, 110);
+        font-weight: bold !important;
+    }
 }

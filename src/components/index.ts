@@ -17,7 +17,6 @@ along with this program; if not, see https://www.gnu.org/licenses/old-licenses/g
 */
 export { default as DueDatePicker } from './DueDatePicker';
 export { default as History } from './History';
-export { default as LanguageSourceSelectFilter } from './LanguageSourceSelectFilter';
 export { default as LanguageTargetCheckboxes } from './LanguageTargetCheckboxes';
 export { default as Loader } from './Loader';
 export { default as UrgentCheckbox } from './UrgentCheckbox';

@@ -32,6 +32,7 @@ export async function GET()
 
         const res = await fetch(StoryblokAppConfigration.URL + "/translationstudio/authorize", {
             method: "GET",
+            cache: "no-cache",
             headers: {
                 "X-license": license
             }

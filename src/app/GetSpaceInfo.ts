@@ -18,6 +18,38 @@ along with this program; if not, see https://www.gnu.org/licenses/old-licenses/g
 import Logger from "@/utils/Logger";
 import { cookies } from "next/headers";
 
+interface SpaceLanguae {
+    code: string;
+    name: string;
+}
+
+interface SpaceResponse {
+    "space": {
+        "id": number;
+        "name": string;
+        "owner": {
+            "access_token": string;
+        },
+        "languages": SpaceLanguae[]
+    }
+}
+
+export type SpaceInformation = {
+    id: string;
+    name: string;
+    ownerAccessToken: string;
+    languags: string[];
+}
+
+export function GetSpaceLangaugs(languages:SpaceLanguae[])
+{
+    const res:string[] = [];
+    for (const e of languages)
+        res.push(e.code);
+
+    return res;
+}
+
 export async function GetSpaceInfo(oauthToken:string)
 {
     if (!oauthToken)
@@ -42,7 +74,7 @@ export async function GetSpaceInfo(oauthToken:string)
         return null;
     }
 
-    const json = await response.json();
+    const json:SpaceResponse = await response.json();
     const spaceid = json?.space?.id ? "" + json?.space?.id : "";
     const name = json?.space?.name ?? ""
     const ownerAccessToken = json?.space?.owner.access_token ?? "";
@@ -50,8 +82,9 @@ export async function GetSpaceInfo(oauthToken:string)
     return {
         id: spaceid,
         name: name,
-        ownerAccessToken: ownerAccessToken
-    }
+        ownerAccessToken: ownerAccessToken,
+        languags: GetSpaceLangaugs(json.space?.languages ?? [])
+    } as SpaceInformation;
 }
 
 export async function GetSpaceAccessToen(spaceid:string) : Promise<string>

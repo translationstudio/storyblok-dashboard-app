@@ -18,243 +18,567 @@ along with this program; if not, see https://www.gnu.org/licenses/old-licenses/g
 export { getServerSideProps } from '@/utils/serverSideProps';
 
 import Head from 'next/head';
-import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation'
-import { useAutoHeight, useToolContext } from '@/hooks';
 
-import { HomeProps, Languages, NotifyMessage as NotifyMessageType, TranslationRequest, Translations } from '@/interfaces_types';
+import { HistoryEntry, HistoryUuidMap, HomeProps, NotifyMessage as NotifyMessageType, SelectedStories, SortableHistoryEntry } from '@/interfaces_types';
 
-import { LanguageTargetCheckboxes, History, DueDatePicker, Loader, UrgentCheckbox, NotifyMessage } from "@/components"
+import { NotifyMessage } from "@/components"
 
-import  {Button, Box, Typography, Checkbox, FormControlLabel }  from '@mui/material'
+import { Avatar, Backdrop, Breadcrumbs, Button, Checkbox, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, Fab, Grid, IconButton, Stack, styled, Tab, Tabs, Tooltip, Typography } from '@mui/material'
+import TranslateIcon from '@mui/icons-material/Translate';
 import SettingsIcon from '@mui/icons-material/Settings';
-import dayjs from 'dayjs';
-import { SendRounded } from '@mui/icons-material';
+import WidgetsIcon from '@mui/icons-material/Widgets';
 
-type LanguageMap = {
-	[id:string]:Languages
+import TranslationstudioLogo, { TranslationstudioLoading } from '@/utils/Logo';
+import React from 'react';
+import { StoryblokStory } from '@/app/api/translationstudio/stories/route';
+
+import HistoryIcon from '@mui/icons-material/History';
+import ViewCarouselIcon from '@mui/icons-material/ViewCarousel';
+import FolderOpenIcon from '@mui/icons-material/FolderOpen';
+
+import Table from '@mui/material/Table';
+import TableBody from '@mui/material/TableBody';
+import TableCell from '@mui/material/TableCell';
+import TableContainer from '@mui/material/TableContainer';
+import TableHead from '@mui/material/TableHead';
+import TableRow from '@mui/material/TableRow';
+import Paper from '@mui/material/Paper';
+import History, { createHistoryUuidMap, prepareHistoryMap } from "@/components/History"
+import TranslationDialog from '@/components/TranslationDialog';
+import { Launch } from '@mui/icons-material';
+
+interface ConentTypeGroup {
+	name: string;
+	list: {
+		id: number;
+		name: string;
+	}[]
 }
 
-type ConnectorMap = {
-	[id:string] : Languages
+const StyledTableRow = styled(TableRow)(({ theme }) => ({
+	'&:hover': {
+		backgroundColor: theme.palette.action.hover,
+	},
+	// hide last border
+	'&:last-child td, &:last-child th': {
+		border: 0,
+	},
+}));
+
+const RenderBackdrop = function (props: { pending: boolean }) {
+	return <Backdrop
+		sx={(theme) => ({ color: '#fff', zIndex: theme.zIndex.drawer + 1 })}
+		open={props.pending}
+	>
+		<CircularProgress color="inherit" />
+	</Backdrop>
 }
 
-const CreateConnectorMap = function(langs: Languages[])
-{
-	const map:LanguageMap = { };
-	for (let elem of langs)
-		map[elem.id] = elem;
-
-	return map;
+const RenderSelectContentType = function () {
+	return <div className='text-center introduction'>
+		<Typography>Please select a content type first</Typography>
+	</div>
 }
 
-const getTranslations = (connectors:{[id:string]:boolean}, connectorMap:ConnectorMap) => {			
-	const trans:Translations[] = []
+type MessageDialogType = {
+	confirm?: boolean;
+	title: string;
+	text: string;
+	callback?: Function
+}
 
-	Object.keys(connectors)
-		.forEach((id) => {
-			const connector = connectorMap[id];
-			if (!connector)
-				return;
+const RenderMessageBox = function (props: { data: MessageDialogType, onClose: Function }) {
+	const fnCallback = function () {
+		if (props.data.callback)
+			props.data.callback();
 
-			for (let lang of connector.targets)
-			{
-				trans.push({
-					source: connector.source,
-					target: lang,
-					"connector-project": connector.connector
-				});
-			}
-		});
+		props.onClose();
+	}
+	return <Dialog
+		open={true}
+	>
+		<DialogTitle>{props.data.title}</DialogTitle>
+		<DialogContent>
+			<DialogContentText>{props.data.text}</DialogContentText>
+		</DialogContent>
+		<DialogActions>
+			<Button variant="outlined" onClick={() => props.onClose()}>Cancel</Button>
+			<Button onClick={() => fnCallback()}>OK</Button>
+		</DialogActions>
+	</Dialog>
+}
 
-	return trans;
-};
+const convertDateFormat = function (date: string) {
+	const parts = date.split("-");
+	if (parts.length !== 3)
+		return date;
 
-const Home = (props: HomeProps) => {			
-	const { push } = useRouter();
-	const toolContext = useToolContext();
-	
-	const spaceId = props.spaceId;
-	const connectorMap = CreateConnectorMap(props.tsLanguageMappings);
+	return parts[2] + "/" + parts[1] + "/" + (parts[0].length === 4 ? parts[0].substring(2) : parts[0]);
+}
 
-	const [entryId, setEntryId] = useState("");
-	const [entryTitle, setEntryTitle] = useState("");
-	
-	const [targetLanguageChecked, setTargetLanguageChecked] = useState<{[id: string]: boolean }>({});	
-	const [ignoreNonAISettings, setIgnoreNonAISettings] = useState(true);
-	const [urgent, setUrgent] = useState(true);	
-	const [dueDate, setDueDate] = useState<number|undefined>();
-	const [enableSubmit, setEnableSubmit] = useState(false);
-	const [notifyMessage, setNotifyMessage] = useState<NotifyMessageType|null>(null);
-	const [receiveEmails, setReceiveEmails] = useState(typeof props.userInfo?.email === "string" && props.userInfo.email !== "");
+const convertDateTIme = function (time: string) {
+	const parts = time.split(":");
+	if (parts.length !== 3)
+		return time;
 
-	const [loader, setLoader] = useState(false);
+	let n = parseInt(parts[0]);
+	const format = n >= 12 ? "PM" : "AM";
+	if (n > 12)
+		n -= 12
 
-	const handleTargetChange = (id:string, checked:boolean) => 
-	{					
-		if (!id)
+	const r = n < 10 ? "0" : "";
+	return r + n + "/" + parts[1] + " " + format;
+}
+
+const getInitials = function (name: string) {
+	if (name === "")
+		return "";
+
+	const val = name.length > 1 ? name.substring(0, 2) : name.substring(0, 1)
+	return val.toUpperCase();
+}
+
+const prettyPrintNam = function (name: string) {
+	return name;
+}
+
+const processStories = function (list: StoryblokStory[]) {
+	list.filter(e => e.updated_at && e.updated_at.includes("T")).forEach(e => {
+		const pos = e.updated_at.lastIndexOf('.');
+		if (pos > 0)
+			e.updated_at = e.updated_at.substring(0, pos);
+
+		const parts = e.updated_at.split("T");
+		if (parts.length !== 2)
 			return;
 
-		if (checked)
-			targetLanguageChecked[id] = true;
-		else if (targetLanguageChecked[id])
-			delete targetLanguageChecked[id];
+		e.updated_at = convertDateFormat(parts[0]) + " " + convertDateTIme(parts[1]);
+	});
+	return list;
+}
 
-		let hasNonAi = false;
-		for (let key in targetLanguageChecked)
-		{
-			if (connectorMap[key] && targetLanguageChecked[key] && !connectorMap[key].machine)
-			{
-				hasNonAi = true;
-				break;
-			}
+function RenderNotConfiured() {
+	return <>
+		<Head>
+			<title>translationstudio</title>
+			<meta name="viewport" content="width=device-width, initial-scale=1" />
+		</Head>
+		<main style={{ padding: "2em" }}></main>
+		<Grid container rowGap={2} columnGap={2}>
+			<TranslationstudioLogo />
+			<Grid size={2} />
+			<Grid size={8}>
+				<NotifyMessage notifyMessage={{
+					type: 'warning',
+					withIcon: true,
+					message: "You do not yet have any translation settings configured. Please access your translationstudio account and configure your Storyblok integration."
+				}} />
+			</Grid>
+			<Grid size={2} />
+		</Grid>
+	</>
+}
+const RenderPath = function (props: { folder: string, type: string }) {
+	return <Breadcrumbs aria-label="breadcrumb" separator="›" className='breadcrmb' style={{ marginBottom: "2em" }}>
+		<Typography sx={{ color: 'text.primary' }}>
+			Select stories to translate from
+		</Typography>
+		{props.type &&
+			<Typography>
+				{props.folder ? props.folder : "."}
+			</Typography>
 		}
+		<Typography sx={{ color: 'text.primary' }}>
+			{props.type}
+		</Typography>
 
-		const hasSelection = Object.keys(targetLanguageChecked).length > 0;
-	
-		setEnableSubmit(hasSelection);
-		setTargetLanguageChecked({ ...targetLanguageChecked });
-		
-		if (!hasNonAi)
-		{
-			setUrgent(true);
-			setDueDate(undefined);
-			setIgnoreNonAISettings(true);
-		}
-		else
-			setIgnoreNonAISettings(false);
-	};
+	</Breadcrumbs>
+}
 
-	const handleUrgentChange = (event: React.ChangeEvent<HTMLInputElement>) => setUrgent(event.target.checked);
+const getTranslationLabel = function (key: string) {
+	switch (key) {
+		case "imported":
+			return "translated"
+		case "intranslation":
+			return "in translation"
+		case "queued":
+		default:
+			return "Queued";
+	}
+}
 
-	const handleDueDateChange = (dueDate: dayjs.Dayjs|null) => {
-		const time = dayjs(dueDate).unix();
-		setDueDate(time > Date.now() ? time : undefined)
+const RenderHistoryInformation = function (props: { entry: StoryblokStory, map: HistoryUuidMap }) {
+	const data = props.map[props.entry.id];
+	if (!data)
+		return <>-</>
+
+	return <>{data.map((elem, idx) => <React.Fragment key={"h" + props.entry.uuid + "-" + idx}>
+		<Typography variant='subtitle1'>{elem.lang}: {getTranslationLabel(elem.status)}</Typography>
+		<Typography variant='caption'>{elem.date}</Typography>
+	</React.Fragment>)}
+	</>
+}
+
+function getSpaceLangaugs(languages: any[]) {
+	if (!languages || !Array.isArray(languages) || languages.length === 0) {
+		console.warn("Cannot identify space languags");
+		return [];
 	}
 
-	const handleResetForm = () => {
-		setTargetLanguageChecked({});				
-		setDueDate(undefined);	
-		setUrgent(true);
-		setEnableSubmit(false);
-		setNotifyMessage(null);
+	const res: string[] = [];
+	for (const e of languages)
+		res.push(e.code);
+
+	return res.sort();
+}
+
+export default function Home(props: HomeProps) {
+	if (props.tsLanguageMappings.length === 0) {
+		<RenderNotConfiured />
 	}
+
+	const { push } = useRouter();
+
+	const spaceId = props.spaceId;
+
+	const spaceLanguags = getSpaceLangaugs(props.space?.languages ?? []);
+	const [notifyMessage, setNotifyMessage] = React.useState<NotifyMessageType | null>(null);
+	const [contentTypes, setContentTypes] = React.useState<ConentTypeGroup[]>([]);
+	const [currentType, setCurrentType] = React.useState(-1);
+	const [currentFolder, setCurrentFolder] = React.useState<{ folder: string, tpl: string }>({ folder: "", tpl: "" });
+	const [currentStories, setCurrentStories] = React.useState<StoryblokStory[]>([])
+	const [selectedStories, setSelectedStories] = React.useState<SelectedStories>({});
+	const [loader, setLoader] = React.useState(true);
+	const [pending, setPending] = React.useState(false);
+	const [messageDialog, setMessageDialog] = React.useState<MessageDialogType | null>(null);
+	const [currentTab, setCurrentTab] = React.useState(0);
+	const [history, setHistory] = React.useState<SortableHistoryEntry[]>([]);
+	const [historyMap, setHistoryMap] = React.useState<HistoryUuidMap>({});
+	const [openTranslationDialog, setOpenTranslationDialog] = React.useState(false);
+	const [filterContentType, setFilterContentType] = React.useState("")
 
 	const handleSettings = () => {
 		setLoader(true);
-		push('/configuration?spaceId='+props.spaceId+'&userId='+props.userId);
+		push('/configuration?spaceId=' + props.spaceId + '&userId=' + props.userId);
 	}
 
-	useEffect(() => {		
-		if (toolContext) {		
-			setEntryId(toolContext.story.id.toString())
-			setEntryTitle(toolContext.story.name);
-			setLoader(false);
-		}
-	}, [toolContext, setEntryId, setEntryTitle, setLoader]);
+	const loadContentTypes = function () {
+		if (contentTypes.length > 0)
+			return;
 
-	// actual TS request
-	const handleSubmit = () => 
-	{
-		setNotifyMessage({type: 'info', withIcon: true, message: "Sending translation request..."});
-		setEnableSubmit(false);
-
-		const payload: TranslationRequest = {		
-			entry_uid: entryId, // UID of the entry
-			email: (props.userInfo.email ?? ""), // user email
-			title: entryTitle, // entry title
-			spaceid: spaceId,
-			urgent: urgent,
-			duedate: dueDate ?? 0,
-			notifyUser: ignoreNonAISettings === false && receiveEmails,
-			translations: getTranslations(targetLanguageChecked, connectorMap)
-		};
-
-		fetch("/api/translationstudio/translate", {
-			method: "POST",
+		setPending(true);
+		fetch("/api/translationstudio/contenttypes", {
 			headers: {
-				"X-translationstudio": "storyblok",
 				"X-spaceid": props.spaceId,
+				"X-translationstudio": "storyblok"
 			},
-			body: JSON.stringify(payload),
-		})
-		.then((res) => {
-			if (!res.ok)
-				throw new Error("Could not submit request");
 
-			setNotifyMessage({type: 'success', withIcon: true, message: "Translation request sent successfully!"});
 		})
-		.catch(err => {
-			console.error(err);
-			setNotifyMessage({type: 'error', withIcon: true, message: "Could not submit request"});
+			.then(res => {
+				if (!res.ok)
+					throw new Error("Could not load content types");
+
+				return res.json();
+			})
+			.then((types: ConentTypeGroup[]) => {
+				if (types.length > 0) {
+					for (const e of types)
+						e.list.sort((a, b) => a.name.localeCompare(b.name))
+
+					setContentTypes(types.sort((a: ConentTypeGroup, b: ConentTypeGroup) => a.name.localeCompare(b.name)));
+				}
+				else
+					setNotifyMessage({ type: 'info', message: "No content types available" });
+			})
+			.catch(err => setNotifyMessage({ type: 'error', message: err.message ?? "Could not load content types" }))
+			.finally(() => setPending(false));
+	}
+
+	const loadHistory = function (usePending = true) {
+		if (usePending)
+			setPending(true);
+
+		fetch("/api/translationstudio/history", {
+			headers: {
+				"X-spaceid": props.spaceId,
+				"X-translationstudio": "storyblok",
+			}
 		})
-		.finally(() => setEnableSubmit(true));
-	};
+			.then((res) => {
+				if (res.ok)
+					return res.json();
 
-	useAutoHeight();
+				throw new Error("Cannot load history");
+			})
+			.then((list: HistoryEntry[]) => {
+				const sortabl = prepareHistoryMap(list);
+				const map = createHistoryUuidMap(sortabl);
+				setHistory(sortabl);
+				setHistoryMap(map);
+			})
+			.catch((err) => {
+				console.error(err);
+				setNotifyMessage({ type: 'error', message: err.message ?? "Could not load content types" })
+			}).finally(() => {
+				if (usePending)
+					setPending(false)
+				else
+					setLoader(false);
+			})
+	}
 
-	if (!entryId || loader || !spaceId || !toolContext)
-	{
-		return <main>
-			<Loader />
+	React.useEffect(() => {
+
+		loadHistory(false);
+
+	}, [setHistory, setLoader]);
+
+	const doLoadStoriesByType = function (type: number, tpl: string, folder: string) {
+		setNotifyMessage(null);
+		setPending(true);
+		fetch("/api/translationstudio/stories", {
+			headers: {
+				"X-spaceid": props.spaceId,
+				"X-translationstudio": "storyblok",
+				"X-component": "" + tpl
+			}
+		})
+			.then((res) => {
+				if (res.ok)
+					return res.json();
+
+				throw new Error("Cannot load stories of type " + tpl);
+			})
+			.then((list: StoryblokStory[]) => {
+				setSelectedStories({});
+				setCurrentStories(processStories(list));
+				setCurrentType(type);
+				setCurrentFolder({ folder: folder, tpl: tpl });
+			})
+			.catch((err) => {
+				console.error(err);
+				setNotifyMessage({ type: 'error', message: err.message ?? "Could not load content types" })
+			}).finally(() => setPending(false))
+	}
+
+	const loadStoriesByType = function (type: number, tpl: string, folder: string) {
+		if (Object.keys(selectedStories).length === 0) {
+			doLoadStoriesByType(type, tpl, folder);
+			return;
+		}
+
+		setMessageDialog({
+			confirm: true,
+			title: "Your selection will be lost",
+			text: "You have selected stories. If you proceed, this selection will be lost",
+			callback: () => doLoadStoriesByType(type, tpl, folder)
+		});
+	}
+
+	if (loader || !spaceId) {
+		return <main style={{ padding: "2em" }}>
+			<TranslationstudioLoading text="Loading Storyblok content types" />
 		</main>
 	}
 
-	if (props.tsLanguageMappings.length === 0)
-	{
-		return <main>
-			<NotifyMessage notifyMessage={{ message: "translationstudio has not been setup yet.", type: "warning"}} />
-		</main>
+	const RenderTranslateButton = function () {
+		const len = Object.keys(selectedStories).length;
+		if (len === 0)
+			return <></>;
+
+		const label = len === 1 ? "Story" : "Stories";
+		return <Fab color="primary" aria-label="translate" variant="extended" onClick={() => setOpenTranslationDialog(true)} style={{ position: "fixed", right: "2em", bottom: "2em", zIndex: "2"}}>
+			<TranslateIcon /> Translate {len} {label}
+		</Fab>
+	}
+
+	const RenderStories = function () {
+
+		if (currentStories.length === 0) {
+			return <Stack direction="column" spacing={4} sx={{ justifyContent: "center", alignItems: "center", marginTop: "3em" }}>
+				<FolderOpenIcon />
+				<Typography variant='button'>No stories available.</Typography>
+				<Typography variant='subtitle1'>This content type doesn't have any content yet.</Typography>
+			</Stack>
+		}
+
+		return <>
+			<TableContainer component={Paper} style={{ paddingTop: "1em" }}>
+				<Table sx={{ width: "100%" }} size="small">
+					<TableHead>
+						<TableRow>
+							<TableCell>
+								<Checkbox
+									color="primary"
+									checked={Object.keys(selectedStories).length === currentStories.length && currentStories.length > 0}
+									onChange={(e) => {
+										if (!e.target.checked) {
+											setSelectedStories({})
+											return;
+										}
+
+										for (const story of currentStories)
+											selectedStories["" + story.id] = story.name;
+
+										setSelectedStories({ ...selectedStories })
+									}}
+								/>
+							</TableCell>
+							<TableCell>Name</TableCell>
+							<TableCell />
+							<TableCell>Updated at</TableCell>
+							<TableCell>by</TableCell>
+							<TableCell>Translation Status</TableCell>
+						</TableRow>
+					</TableHead>
+					<TableBody>
+						{currentStories.map((row) => (
+							<StyledTableRow key={row.id} sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
+								<TableCell>
+									<Checkbox
+										color="primary"
+										checked={selectedStories["" + row.id] !== undefined}
+										onChange={(e) => {
+											if (e.target.checked)
+												selectedStories["" + row.id] = row.name;
+											else if (selectedStories["" + row.id])
+												delete selectedStories["" + row.id];
+
+											setSelectedStories({ ...selectedStories })
+										}}
+									/>
+								</TableCell>
+								<TableCell component="th" scope="row" onClick={() => { 
+										if (selectedStories["" + row.id])
+											delete selectedStories["" + row.id];
+										else
+											selectedStories["" + row.id] = row.name;
+
+										setSelectedStories({ ...selectedStories })
+								}} style={{ cursor: "pointer"}}>
+									<Typography variant='subtitle1'><b>{row.name}</b></Typography>
+									<Typography variant='caption'>{row.full_slug ?? ""}</Typography>
+								</TableCell>
+								<TableCell>
+									<a href={"https://app.storyblok.com/#/me/spaces/" + spaceId + "/stories/0/0/" + row.id} target='_blank'>
+										<Launch />
+									</a>
+								</TableCell>
+								<TableCell>
+									<Typography variant='subtitle1'>{row.updated_at ?? "-"}</Typography>
+									<Typography variant='caption'>{row.last_author?.friendly_name ?? ""}</Typography>
+								</TableCell>
+								<TableCell>
+									<Tooltip title={row.last_author?.friendly_name ?? ""} placement="top">
+										<Avatar style={{ marginRight: "10px", textAlign: "center", fontSize: "0.9em" }}>{getInitials(row.last_author?.friendly_name ?? "")}</Avatar>
+									</Tooltip>
+								</TableCell>
+								<TableCell>
+									<RenderHistoryInformation entry={row} map={historyMap} />
+								</TableCell>
+							</StyledTableRow>
+						))}
+					</TableBody>
+				</Table>
+			</TableContainer>
+		</>
 	}
 
 	return (
-		<>			
+		<>
 			<Head>
 				<title>translationstudio</title>
 				<meta name="viewport" content="width=device-width, initial-scale=1" />
-			</Head>			
-			<main>
-				<Box component="section" sx={{ }}>
-					<Box sx={{ pb:2 }}>							
-						<SettingsIcon onClick={() => { handleSettings(); }} sx={{position:'absolute', right: '5px', cursor: 'pointer'}}/>
-						<Typography sx={{ }} variant="body1" gutterBottom>Translate {entryTitle ? <b>{entryTitle}</b> : <></>} using</Typography>
-					</Box>						
+			</Head>
+			<main style={{ padding: "2em" }}>
+				<RenderBackdrop pending={pending} />
+				{messageDialog && <RenderMessageBox data={messageDialog} onClose={() => setMessageDialog(null)} />}
+				{openTranslationDialog && <TranslationDialog {...props} spaceLanguages={spaceLanguags} selectedStories={selectedStories} onClose={() => setOpenTranslationDialog(false)} />}
 
-					<LanguageTargetCheckboxes handleTargetChange={handleTargetChange} 
-						tsLanguageMappings={props.tsLanguageMappings}  
-						targetLanguageChecked={targetLanguageChecked} 
-					/>
-					
-					{!ignoreNonAISettings && (<>
-						<DueDatePicker handleDueDateChange={handleDueDateChange} isMachineTranslation={false} dueDate={dueDate} />
-						<UrgentCheckbox handleUrgentChange={handleUrgentChange} isMachineTranslation={false} urgent={urgent} />
-						{props.userInfo?.email && <Box sx={{ pb:4, pl: 1 }}>
-								<FormControlLabel
-									control={<Checkbox onChange={(event: React.ChangeEvent<HTMLInputElement>) => setReceiveEmails(event.target.checked)}
-										checked={receiveEmails}
-										inputProps={{ 'aria-label': 'controlled' }} />}
-									label="Receive e-mail notifications"
+				<Grid container rowGap={0} columnGap={2}>
+					<TranslationstudioLogo />
+
+					<Grid size={12} className='pos-rel'>
+						<Tooltip title="Update license" sx={{ position: 'absolute', right: '10px', top: "-50px", cursor: 'pointer' }} >
+							<IconButton onClick={() => { handleSettings(); }} >
+								<SettingsIcon />
+							</IconButton>
+						</Tooltip>
+					</Grid>
+
+					{notifyMessage?.message && (<Grid size={12}>
+						<NotifyMessage notifyMessage={notifyMessage} />
+					</Grid>)}
+
+					<Grid size={12}>
+						<Tabs value={currentTab} onChange={(_event, newValue) => {
+							if (newValue === 1)
+								loadContentTypes();
+
+							setCurrentTab(newValue)
+						}
+						}>
+							<Tab label="Translation history for this space" id="simple-tab-0" iconPosition="start" icon={<HistoryIcon />} />
+							<Tab label="Translate multiple stories" id="simple-tab-1" iconPosition="start" icon={<ViewCarouselIcon />} />
+						</Tabs>
+					</Grid>
+
+					{currentTab === 0 && (<History list={history} />)}
+					{currentTab === 1 && (<Grid container size={12} columnSpacing={2} style={{ paddingTop: "3em" }}>
+						<RenderTranslateButton />
+						<Grid size={12}>
+							Available content types and languges: {contentTypes.length > 0 && contentTypes.filter(elem => elem.name).map((elem, idx) => <Chip 
+								key={"c" + idx} label={elem.name ?? ""} style={{ marginRight: "5px", cursor: "pointer"}} 
+								color={filterContentType === elem.name ? "primary" : "default"}
+								onClick={() => { 
+									if (elem.name === filterContentType)
+										setFilterContentType("")
+									else
+										setFilterContentType(elem.name ?? "")
+								}}
 								/>
-							</Box>}
-					</>)}
+							)}
+							{spaceLanguags.map((code) => <Chip
+								label={code}
+								key={"lang" + code}
+								variant={"outlined"}
+								style={{ marginRight: "0.5em" }}
+							/>)}
+						</Grid>
+						<Grid size={{ xs:3, sm:2 }}>
+							<Typography style={{ width: "100%", paddingBottom: "0.5em"}}>&nbsp;</Typography>
+							{contentTypes.length > 0 && contentTypes.map((elem, idx) => {
+								if (filterContentType !== "" && filterContentType !== elem.name)
+									return <React.Fragment key={idx+elem.name} />
 
-					<Box sx={{ pb:4 }}>
-						{!notifyMessage && (
-							<Button disabled={!enableSubmit} onClick={() => handleSubmit()} startIcon={<SendRounded />} type="button" variant="contained" size="small" sx={{ mt: 2, mr: 5 }}>
-								{urgent ? "Translate immediately" : "Translate"}
-							</Button>
-						)}
-						{notifyMessage && (<>
-							<NotifyMessage notifyMessage={notifyMessage}/>								
-							<Box sx={{display:"flex", justifyContent:"center", pr:2}}>
-								<Button onClick={() => handleResetForm()} type="button" variant="contained" size="small" sx={{mt:2}}>Start new translation request</Button> 
-							</Box>
-						</>)}
-					</Box>
-					<History spaceId={spaceId} entryId={entryId} />
-				</Box>
-			</main>			
+								return <React.Fragment key={idx+elem.name}>
+									{elem.list.map((entry) => 
+									<Stack spacing={2} direction="row" justifyContent={"flex-start"} sx={{ alignItems: 'left', width: "100%"}} key={"lr" + entry.id}>
+											<Button 
+												variant={entry.id === currentType ? "text" : "text"} 
+												style={{ textAlign: "left",
+													justifyContent: "flex-start",
+												}} 
+												fullWidth 
+												startIcon={<WidgetsIcon />}
+												color='secondary' 
+												onClick={() => loadStoriesByType(entry.id, entry.name, elem.name)} disabled={entry.id === currentType}
+											>
+												<Typography variant='overline' style={{ lineHeight: "1.1em", textTransform: "capitalize" }}>
+													{entry.name}
+												</Typography>
+											</Button>
+										</Stack>)}
+								</React.Fragment>
+							})}
+						</Grid>
+						<Grid size={{ xs:9, sm:10 }}>
+							{currentType > 0 ? <RenderStories /> : <RenderSelectContentType />}
+						</Grid>
+					</Grid>)}
+				</Grid>
+			</main>
 		</>
 	);
 }
-export default Home;

@@ -21,9 +21,8 @@ import { isAppSessionQuery } from '@storyblok/app-extension-auth';
 import { appSessionCookies } from '@/auth';
 import Head from 'next/head';
 import { useEffect } from 'react';
-import { useAutoHeight } from '@/hooks';
-import { Loader } from '@/components';
 import StoryblokAppConfigration from '@/StoryblokAppConfiguration';
+import { TranslationstudioLoading } from '@/utils/Logo';
 
 const TSLoader = (props: {spaceId: string, userId: string}) => {			
     const { push } = useRouter();
@@ -32,8 +31,6 @@ const TSLoader = (props: {spaceId: string, userId: string}) => {
         push('/home?spaceId=' + props.spaceId + '&userId=' + props.userId);
      }, []);
 
-	useAutoHeight();
-
 	return (
 		<>			
 			<Head>
@@ -41,8 +38,8 @@ const TSLoader = (props: {spaceId: string, userId: string}) => {
 				<meta name="description" content="Plugin to handle translation requests from Storyblok CMS to TranslationStudio" />
 				<meta name="viewport" content="width=device-width, initial-scale=1" />
 			</Head>
-			<main>				
-				<Loader />
+			<main style={{ padding: "2em"}}>				
+				<TranslationstudioLoading text="Loading license" />
 			</main>
 		</>
 	);

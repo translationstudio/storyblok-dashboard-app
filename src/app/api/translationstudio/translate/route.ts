@@ -38,12 +38,18 @@ function getConnectorProject(input: string) {
 	}
 }
 
-const createTranslationsPayload = function(list:Translations[])
+const createTranslationsPayload = function(list:Translations[], spacelanguages:string[])
 {
     const res:TranslationRequestTranslations[] = [];
 
     for (let elem of list)
     {
+        if (!spacelanguages.includes(elem.target))
+        {
+            Logger.warn("Target language is not available in this space and will be ignored: " + elem.target);
+            continue;
+        }
+        
         const con = getConnectorProject(elem["connector-project"]);
         res.push({
             source: elem.source,
@@ -76,21 +82,20 @@ export async function POST(req:Request)
             return NextResponse.json({ message: "cannot obtain license"}, { status: 400 }); 
 
         const payload:TranslationRequest = await req.json();
-        if (!payload.title || !payload.entry_uid || !payload.translations || !Array.isArray(payload.translations) || payload.translations.length === 0)
+        if (!Array.isArray(payload.entries) || payload.entries.length === 0 || !payload.translations || !Array.isArray(payload.translations) || payload.translations.length === 0)
             throw new Error("Invalid payload");
 
         const translationPayload = {
             spaceid: spaceid,
             space_title: space.name,
-            entry_uid: payload.entry_uid,
-            title: payload.title,
+            entries: payload.entries,
             urgent: payload.urgent === true,
             duedate: payload.duedate,
             email: payload.notifyUser === false ? "" : payload.email,
-            translations: createTranslationsPayload(payload.translations)
+            translations: createTranslationsPayload(payload.translations, space.languags)
         }
         
-        const res = await fetch(StoryblokAppConfigration.URL + "/translationstudio/translate", {
+        const res = await fetch(StoryblokAppConfigration.URL + "/translationstudio/translate/multiple", {
             method: "POST",
             headers: {
                 "X-license": appInfo.license,

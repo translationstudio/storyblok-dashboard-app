@@ -61,7 +61,16 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
 		await setCurrentUserEmail(userId, space.space, userInfo, accessToken);	
 
 		return {
-			props: { userInfo, ...space, "region": appSession.region, spaceId, license, tsLanguageMappings, userId, isAdmin: isAdmin(appSession) },
+			props: { 
+				userInfo, 
+				...space, 
+				"region": appSession.region, 
+				spaceId, 
+				license, 
+				tsLanguageMappings, 
+				userId, 
+				isAdmin: isAdmin(appSession),
+			},
 		};	
 	}
 	catch (err) {

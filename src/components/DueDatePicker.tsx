@@ -42,12 +42,9 @@ const DueDatePicker = ({handleDueDateChange, dueDate, isMachineTranslation}:DueD
         setError(!!(dueDate !== undefined && error));
     }
 
-    if (isMachineTranslation)
-        return <></>;
-
-    return <Box component="section" sx={{ pb:4 }}>						
+    return <Box component="section">						
         <FormControl>															
-            <FormLabel id="translation-date-label" className="translation-caption">Translation due date (optional)</FormLabel>
+            <FormLabel id="translation-date-label">Due date (optional)</FormLabel>
             <DatePicker 							
                 value={dayjs.unix(Number(dueDate))}
                 onChange={handleDueDateChange} 
@@ -60,6 +57,7 @@ const DueDatePicker = ({handleDueDateChange, dueDate, isMachineTranslation}:DueD
                         },	
                 }} 
                 disablePast={true} 	
+                disabled={isMachineTranslation}
             />
         </FormControl>
     </Box>;

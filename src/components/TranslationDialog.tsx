@@ -1,3 +1,20 @@
+/*
+Storyblok - translationstudio extension
+Copyright (C) 2025 I-D Media GmbH, idmedia.com
+
+This program is free software; you can redistribute it and/or
+modify it under the terms of the GNU General Public License
+as published by the Free Software Foundation; either version 2
+of the License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, see https://www.gnu.org/licenses/old-licenses/gpl-2.0.html
+*/
 import { SendRounded } from "@mui/icons-material";
 import { Grid, FormControlLabel, Checkbox, Button, Typography, useTheme, Dialog, DialogTitle, DialogContent, DialogActions } from "@mui/material";
 import DueDatePicker from "./DueDatePicker";
@@ -186,24 +203,24 @@ export default function TranslationDialog(props: HomeProps & { selectedStories: 
         <DialogContent>
             <Grid container rowGap={1}>
                 {notifyMessage?.message ? <>
-                    <Grid item xs={12}>
+                    <Grid size={12}>
                         <NotifyMessage notifyMessage={notifyMessage} />
                     </Grid>
                     </> : <>
-                    <Grid item xs={12}>
+                    <Grid size={12}>
                         <LanguageTargetCheckboxes handleTargetChange={handleTargetChange}
                             tsLanguageMappings={props.tsLanguageMappings}
                             targetLanguageChecked={targetLanguageChecked}
                             invalidIds={connectorWarningIds}
                         />
                     </Grid>
-                    <Grid item xs={12}>
+                    <Grid size={12}>
                         <DueDatePicker handleDueDateChange={handleDueDateChange} isMachineTranslation={ignoreNonAISettings} dueDate={dueDate} />
                     </Grid>
-                    <Grid item xs={12}>
+                    <Grid size={12}>
                         <UrgentCheckbox handleUrgentChange={handleUrgentChange} isMachineTranslation={ignoreNonAISettings} urgent={urgent} />
                     </Grid>
-                    <Grid item xs={12}>
+                    <Grid size={12}>
                         <FormControlLabel
                             control={<Checkbox onChange={(event: React.ChangeEvent<HTMLInputElement>) => setReceiveEmails(event.target.checked)}
                                 checked={receiveEmails && !ignoreNonAISettings && (props.userInfo?.email ?? "") !== ""}

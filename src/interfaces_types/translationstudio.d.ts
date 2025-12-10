@@ -41,8 +41,10 @@ export interface Translations {
 export interface TranslationRequest {	
 	email: string;
 	duedate?: number;
-	title: string;
-	entry_uid: string;
+	entries: {
+		uid: string;
+		title: string;
+	}[],
 	spaceid: string;
 	urgent: boolean;
 	translations: Translations[];
@@ -50,12 +52,12 @@ export interface TranslationRequest {
 }
 
 export interface History {
-	"time-intranslation": number;
-	"project-name": string;
-	"time-imported": number;
-	"element-uid": string;
+	element: string;
+	type: number;
+	"source-language": string;
 	"target-language": string;
-	"time-updated": number;
-	"element-name": string;
-	"time-requested": number;
+	"time-insert": number;
+	"time-export": number;
+	"time-intranslation": number;
+	"time-translated": number;
 }

@@ -26,15 +26,14 @@ type UrgentCheckboxProps = {
 }
 
 const UrgentCheckbox = ({handleUrgentChange, urgent, isMachineTranslation}:UrgentCheckboxProps) => {
-    if (isMachineTranslation)
-        return <></>;
 
-    return <Box sx={{ pl: 1 }}>
+    return <Box>
         <FormControlLabel 
             control={<Checkbox onChange={handleUrgentChange} 
-            checked={urgent} 
+            checked={urgent && !isMachineTranslation} 
+            disabled={isMachineTranslation}
             inputProps={{ 'aria-label': 'controlled' }}/>} 
-            label="This is an urgent request" 
+            label="Translate immediately and ignore any quote settings" 
         />
     </Box>;
 }

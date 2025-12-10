@@ -15,7 +15,7 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program; if not, see https://www.gnu.org/licenses/old-licenses/gpl-2.0.html
 */
-import '@/styles/globals.css';
+import '@/styles/globals.scss';
 import type { AppProps } from 'next/app';
 import { useState } from 'react';
 

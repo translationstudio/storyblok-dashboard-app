@@ -17,19 +17,15 @@ along with this program; if not, see https://www.gnu.org/licenses/old-licenses/g
 */
 import GetAppInformation from "@/app/GetAppInformation";
 import { GetSpaceAccessToen, GetSpaceInfo } from "@/app/GetSpaceInfo";
+import { HistoryEntry } from "@/interfaces_types/types";
 import StoryblokAppConfigration from "@/StoryblokAppConfiguration";
 import Logger from "@/utils/Logger";
 import { headers } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
-import { History as HistoryType } from "@/interfaces_types";
 
 export async function GET(request: NextRequest)
 {
     try{
-        const elementuid = request?.nextUrl?.searchParams.get("element");
-        if (typeof elementuid !== "string" || elementuid === "")
-            return NextResponse.json({ message: "Invalid element"}, { status: 400 }); 
-
         const headersList = await headers()
         const spaceid = headersList.get('X-spaceid') ?? "";
         const spaceToken = await GetSpaceAccessToen(spaceid);
@@ -45,10 +41,11 @@ export async function GET(request: NextRequest)
         if (appInfo === null || !appInfo.license)
             return NextResponse.json({ message: "cannot obtain license"}, { status: 400 }); 
        
-        const res = await fetch(StoryblokAppConfigration.URL + "/translationstudio/history/" + spaceid + "/uuid/" + elementuid, {
+        const res = await fetch(StoryblokAppConfigration.URL + "/translationstudio/history/" + spaceid, {
             method: "GET",
             headers: {
                 "X-license": appInfo.license,
+                "X-translationstudio": "storyblok",
             }
         });
 
@@ -61,7 +58,7 @@ export async function GET(request: NextRequest)
             throw new Error(json.message ?? "Could not fetch history");
         }
 
-        const json:HistoryType[] = await res.json();
+        const json:HistoryEntry[] = await res.json();
         return NextResponse.json(json);
     }
     catch (err:any)

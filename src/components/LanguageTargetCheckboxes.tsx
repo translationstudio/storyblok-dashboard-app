@@ -17,36 +17,57 @@ along with this program; if not, see https://www.gnu.org/licenses/old-licenses/g
 */
 import React from "react";
 import { Languages } from '@/interfaces_types';
-import { Box, Checkbox, FormControl, FormControlLabel, FormGroup, FormLabel, Typography } from '@mui/material'
+import { Alert, Box, Checkbox, FormControl, FormControlLabel, FormGroup, FormLabel, Typography } from '@mui/material'
 
 
 type LanguageTargetCheckboxesProps = {
     handleTargetChange: (id:string, checked:boolean) => void;
     tsLanguageMappings: Languages[];
     targetLanguageChecked: { [key: string]: boolean };
+    invalidIds: string[]
 }
 
-const LanguageTargetCheckboxes = ({ handleTargetChange, tsLanguageMappings, targetLanguageChecked }: LanguageTargetCheckboxesProps) => {
+const GetConnectorLabel = function(item:Languages, invalidIds:string[], invalidNames:string[])
+{
+    if (invalidIds.length === 0 || !invalidIds.includes(item.id))
+        return item.name;
+
+    return item.name + "*";
+}
+
+const LanguageTargetCheckboxes = ({ handleTargetChange, tsLanguageMappings, targetLanguageChecked, invalidIds }: LanguageTargetCheckboxesProps) => {
     if (tsLanguageMappings.length === 0) {
         return <></>
     }
 
-    return <Box component="section" sx={{ pb: 4 }}>
+    let showInvalidInformation = false;
+
+    return <Box component="section">
         <FormControl>
+            <FormLabel id="checkbox-buttons-target-language-group-label">
+                <Typography variant="overline">Translate using</Typography>
+            </FormLabel>
             <Box sx={{ pl: 1 }}>
                 <FormGroup>
-                    {tsLanguageMappings.map((item, idx) => <FormControlLabel 
+                    {tsLanguageMappings.map((item, idx) => {
+                        
+                        const hasInvalids = invalidIds.length > 0 && invalidIds.includes(item.id);
+                        if (hasInvalids)
+                            showInvalidInformation = true;
+
+                        return <FormControlLabel 
                             key={"target-language-option-" + idx} 
                             name={idx.toString()} 
-                            label={item.name} 
+                            label={item.name + (hasInvalids ? "*": "")} 
                             control={
                                 <Checkbox checked={targetLanguageChecked[item.id] === true}
                                     onChange={(e) => handleTargetChange(item.id, e.target.checked)} 
                                     inputProps={{ 'aria-label': 'controlled' }} 
                                 />
                             } />
-                    )}
+                    })}
                 </FormGroup>
+                {showInvalidInformation && (<Alert severity="warning">Some invalid target languages were found and removed automatically.</Alert>)}
             </Box>
         </FormControl>
     </Box>

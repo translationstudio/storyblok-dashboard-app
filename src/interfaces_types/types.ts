@@ -117,6 +117,38 @@ export type HomeProps = {
 	setLocale: Function;
 };
 
+export type TranslatableEntriesProps = {
+	setMessageDialog?: Function; // (val:MessageDialogType | null) => void;
+	setPending?: Function; //(val:boolean) => void;
+	notification?: Function; //(val:NotifyMessageType | null) => void;
+	history:HistoryUuidMap;
+	userInfo: UserInfo;	
+	spaceId: string;
+	license: string;				
+	tsLanguageMappings: Languages[];
+} 
+export type FilterType = "imported" | "intranslation" | "queued" | "none";
+
+export type SortableHistoryEntry = {
+    time: number;
+    date: string;
+    name: string;
+    status: FilterType;
+    language: string;
+    element: HistoryEntry;
+    visible: boolean;
+}
+
+export type HistoryUuidMapEntry = {
+    lang: string;
+    status: string;
+    date: string;
+    time: number;
+}
+
+export type HistoryUuidMap = {
+    [key:string] : HistoryUuidMapEntry[];
+}
 export type RequestKey = {
 	key: string,
 	params?: {},
@@ -129,3 +161,29 @@ export type NotifyMessage = {
 	withIcon?: boolean;
 	message?: string;
 }|undefined
+
+
+
+export interface HistoryEntry {
+	"time-intranslation": number;
+	"project-name": string;
+	"time-imported": number;
+	"element-uid": string;
+	"target-language": string;
+	"time-updated": number;
+	"element-name": string;
+	"time-requested": number;
+}
+
+
+export interface SelectedStories {
+	[id: string]: string;
+}
+
+export type LanguageMap = {
+	[id: string]: Languages
+}
+
+export type ConnectorMap = {
+	[id: string]: Languages
+}

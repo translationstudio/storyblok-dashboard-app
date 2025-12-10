@@ -43,7 +43,7 @@ export async function POST(req:Request)
     try{
         const headersList = await headers()
         const spaceid = headersList.get('X-spaceid') ?? "";
-
+       
         const spaceToken = await GetSpaceAccessToens(spaceid);
         if (spaceToken.length === 0)
             return NextResponse.json({ message: "cannot obtain space token"}, { status: 400 }); 
@@ -93,5 +93,7 @@ export async function POST(req:Request)
             return NextResponse.json({ message: err.message}, { status: 500 });
         else
             return NextResponse.json({ message: "Could not save configuration"}, { status: 500 });
-    }   
+    }
+
+    
 }
